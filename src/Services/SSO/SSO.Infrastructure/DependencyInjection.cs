@@ -1,12 +1,12 @@
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using SSO.Application.Contracts;
 using SSO.Infrastructure.Auth;
 using SSO.Infrastructure.Identity;
 using SSO.Infrastructure.Persistence;
 using SSO.Infrastructure.Repositories;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace SSO.Infrastructure;
 
@@ -20,9 +20,9 @@ public static class DependencyInjection
         services.AddIdentityCore<AppIdentityUser>(options =>
             {
                 options.User.RequireUniqueEmail = true;
-                options.Password.RequireDigit = true;
+                options.Password.RequireDigit = false;
                 options.Password.RequireUppercase = false;
-                options.Password.RequireLowercase = true;
+                options.Password.RequireLowercase = false;
                 options.Password.RequireNonAlphanumeric = false;
                 options.Password.RequiredLength = 6;
             })

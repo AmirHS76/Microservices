@@ -1,55 +1,92 @@
-using System.Text;
-using System.Text.Json;
 using Messaging.Abstractions;
 using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
+using System.Text;
+using System.Text.Json;
 
 namespace Messaging.RabbitMQ;
 
-public sealed class RabbitMqEventPublisher(IOptions<RabbitMqOptions> options) : IEventPublisher, IDisposable
+public sealed class RabbitMqEventPublisher : IEventPublisher, IAsyncDisposable
 {
-    private readonly RabbitMqConnection _rabbitMq = RabbitMqConnection.Create(options.Value);
+    private readonly RabbitMqOptions _options;
 
-    private sealed record RabbitMqConnection(RabbitMqOptions Options, IConnection Connection, IModel Channel)
+    private IConnection? _connection;
+    private IChannel? _channel;
+
+    private readonly SemaphoreSlim _initLock = new(1, 1);
+    private bool _initialized = false;
+
+    public RabbitMqEventPublisher(IOptions<RabbitMqOptions> options)
     {
-        public static RabbitMqConnection Create(RabbitMqOptions options)
+        _options = options.Value;
+    }
+
+    private async Task EnsureInitializedAsync()
+    {
+        if (_initialized) return;
+
+        await _initLock.WaitAsync();
+        try
         {
+            if (_initialized) return;
+
             var factory = new ConnectionFactory
             {
-                HostName = options.HostName,
-                Port = options.Port,
-                UserName = options.UserName,
-                Password = options.Password,
-                VirtualHost = options.VirtualHost
+                HostName = _options.HostName,
+                Port = _options.Port,
+                UserName = _options.UserName,
+                Password = _options.Password,
+                VirtualHost = _options.VirtualHost
             };
 
-            var connection = factory.CreateConnection();
-            var channel = connection.CreateModel();
-            channel.ExchangeDeclare(options.ExchangeName, ExchangeType.Topic, durable: true, autoDelete: false);
-            return new RabbitMqConnection(options, connection, channel);
+            // v7 API (async only)
+            _connection = await factory.CreateConnectionAsync();
+            _channel = await _connection.CreateChannelAsync();
+
+            await _channel.ExchangeDeclareAsync(
+                exchange: _options.ExchangeName,
+                type: ExchangeType.Topic,
+                durable: true,
+                autoDelete: false);
+
+            _initialized = true;
+        }
+        finally
+        {
+            _initLock.Release();
         }
     }
 
-    public Task PublishAsync<TEvent>(TEvent integrationEvent, CancellationToken cancellationToken = default)
+    public async Task PublishAsync<TEvent>(TEvent integrationEvent, CancellationToken cancellationToken = default)
         where TEvent : class, IIntegrationEvent
     {
+        await EnsureInitializedAsync();
+
         var payload = JsonSerializer.Serialize(integrationEvent);
         var body = Encoding.UTF8.GetBytes(payload);
-        var props = _rabbitMq.Channel.CreateBasicProperties();
-        props.Persistent = true;
 
-        _rabbitMq.Channel.BasicPublish(
-            exchange: _rabbitMq.Options.ExchangeName,
+        var props = new BasicProperties
+        {
+            Persistent = true
+        };
+
+        await _channel!.BasicPublishAsync(
+            exchange: _options.ExchangeName,
             routingKey: integrationEvent.EventType,
+            mandatory: false,
             basicProperties: props,
-            body: body);
-
-        return Task.CompletedTask;
+            body: body,
+            cancellationToken: cancellationToken);
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
-        _rabbitMq.Channel.Dispose();
-        _rabbitMq.Connection.Dispose();
+        if (_channel != null)
+            await _channel.DisposeAsync();
+
+        if (_connection != null)
+            await _connection.DisposeAsync();
+
+        _initLock.Dispose();
     }
 }

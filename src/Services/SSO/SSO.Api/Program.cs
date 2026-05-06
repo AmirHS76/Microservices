@@ -1,13 +1,13 @@
 using ApiResponses;
-using System.Text;
-using SSO.Application;
-using SSO.Infrastructure;
-using SSO.Infrastructure.Consumers;
 using Messaging.Contracts;
 using Messaging.RabbitMQ;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
+using SSO.Application;
+using SSO.Infrastructure;
+using SSO.Infrastructure.Consumers;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -32,6 +32,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
+builder.Services.AddOpenApi();
 builder.Services.AddAuthorization();
 builder.Services.AddControllers();
 builder.Services.AddBaseResponseValidation();
@@ -46,8 +47,11 @@ await app.Services.EnsureDatabaseCreatedAsync(builder.Configuration);
 
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
+    app.MapOpenApi();
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/openapi/v1.json", "API v1");
+    });
 }
 
 app.UseSerilogRequestLogging();

@@ -17,11 +17,12 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy(FrontendCorsPolicy, policy =>
     {
-        policy.WithOrigins("http://localhost:4211", "http://127.0.0.1:4211")
+        policy.WithOrigins("http://localhost:12411", "http://127.0.0.1:12411")
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
 });
+builder.Services.AddOpenApi();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -54,8 +55,11 @@ var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
+    app.MapOpenApi();
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/openapi/v1.json", "API v1");
+    });
 }
 
 app.UseSerilogRequestLogging();
