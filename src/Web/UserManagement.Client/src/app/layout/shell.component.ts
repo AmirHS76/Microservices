@@ -1,6 +1,6 @@
 import { Component, computed, inject } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { LogOut, LucideAngularModule, ShieldCheck, Users } from 'lucide-angular';
+import { LogOut, LucideAngularModule, MessageCircle, ShieldCheck, Users } from 'lucide-angular';
 import { AuthService } from '../core/auth/auth.service';
 
 @Component({
@@ -22,6 +22,10 @@ import { AuthService } from '../core/auth/auth.service';
           <a routerLink="/users" routerLinkActive="active">
             <lucide-icon [img]="usersIcon" size="18" />
             Users
+          </a>
+          <a routerLink="/chat" routerLinkActive="active">
+            <lucide-icon [img]="chatIcon" size="18" />
+            Chat
           </a>
         </nav>
 
@@ -198,6 +202,7 @@ import { AuthService } from '../core/auth/auth.service';
 export class ShellComponent {
   readonly auth = inject(AuthService);
   readonly usersIcon = Users;
+  readonly chatIcon = MessageCircle;
   readonly shieldIcon = ShieldCheck;
   readonly logoutIcon = LogOut;
   readonly email = computed(() => this.auth.currentUser()?.email || 'Signed in');

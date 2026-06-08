@@ -1,5 +1,14 @@
 using ApiResponses;
+using Chat.Api.Consumers;
+using Chat.Api.Hubs;
+using Chat.Api.Realtime;
+using Chat.Application;
+using Chat.Infrastructure;
+using Chat.Infrastructure.Consumers;
+using Messaging.Contracts;
+using Messaging.RabbitMQ;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
 using System.Text;
@@ -11,19 +20,7 @@ builder.Host.UseSerilog((context, loggerConfig) => loggerConfig.ReadFrom.Configu
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "microservices.sso";
 var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "microservices.clients";
 var jwtKey = builder.Configuration["Jwt:Key"] ?? "CHANGE_THIS_SUPER_SECRET_KEY_1234567890";
-const string FrontendCorsPolicy = "FrontendCors";
-
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy(FrontendCorsPolicy, policy =>
-    {
-        policy.WithOrigins("http://localhost:12411", "http://127.0.0.1:12411")
-            .AllowAnyHeader()
-            .AllowCredentials()
-            .AllowAnyMethod();
-    });
-});
-builder.Services.AddOpenApi();
+var cors = builder.Configuration["Cors:AllowedOrigins"] ?? "http://localhost:4200";
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -44,7 +41,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             {
                 var accessToken = context.Request.Query["access_token"];
                 var path = context.HttpContext.Request.Path;
-                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/chatHub"))
+                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs/chat"))
                 {
                     context.Token = accessToken;
                 }
@@ -54,19 +51,33 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-builder.Services.AddAuthorization(options =>
+builder.Services.AddCors(options =>
 {
-    options.AddPolicy("Authenticated", policy => policy.RequireAuthenticatedUser());
-    options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
+    options.AddPolicy("AllowFrontend-Gateway", policy =>
+    {
+        policy.SetIsOriginAllowed(_ => true)
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
 });
-
-builder.Services.AddReverseProxy()
-    .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
-
+builder.Services.AddOpenApi();
+builder.Services.AddAuthorization();
+builder.Services.AddControllers();
+builder.Services.AddSignalR();
+builder.Services.AddSingleton<IUserIdProvider, NameIdentifierUserIdProvider>();
+builder.Services.AddSingleton<IUserConnectionTracker, UserConnectionTracker>();
+builder.Services.AddBaseResponseValidation();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddApplication();
+builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddRabbitMqPublisher(builder.Configuration);
+builder.Services.AddRabbitMqConsumer<UserRegisteredEvent, UserRegisteredConsumer>(builder.Configuration, "chat.user.registered.queue");
+builder.Services.AddRabbitMqConsumer<ChatMessageQueuedEvent, ChatMessageQueuedConsumer>(builder.Configuration, "chat.message.persist.queue");
 
 var app = builder.Build();
+await app.Services.EnsureDatabaseCreatedAsync();
 
 if (app.Environment.IsDevelopment())
 {
@@ -78,11 +89,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseSerilogRequestLogging();
-app.UseCors(FrontendCorsPolicy);
+app.UseCors("AllowFrontend-Gateway");
 app.UseAuthentication();
 app.UseAuthorization();
-
-app.MapReverseProxy();
-app.MapGet("/", () => Results.Ok(ApiResponse<object>.Ok(new { Service = "Gateway", Status = "Running" }, "Gateway is running.")));
-
+app.MapControllers();
+app.MapHub<ChatHub>("/hubs/chat").RequireAuthorization();
 app.Run();

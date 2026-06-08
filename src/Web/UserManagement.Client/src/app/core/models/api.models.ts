@@ -46,3 +46,31 @@ export interface CurrentUser {
   roles: string[];
   expiresAt: number | null;
 }
+
+export interface ChatUser {
+  userId: string;
+  username: string;
+  email: string;
+}
+
+export type ChatMessageStatus = 'Pending' | 'Sent' | 'Delivered' | 'Read';
+
+export interface ChatMessage {
+  id: string;
+  senderId: string;
+  recipientId: string;
+  body: string;
+  status: ChatMessageStatus;
+  createdAtUtc: string;
+  deliveredAtUtc: string | null;
+  readAtUtc: string | null;
+}
+
+export interface Conversation {
+  id: string;
+  otherUserId: string;
+  otherUsername: string;
+  otherEmail: string;
+  lastMessage: ChatMessage | null;
+  lastMessageAtUtc: string;
+}

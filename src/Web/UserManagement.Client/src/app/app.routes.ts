@@ -21,6 +21,10 @@ export const routes: Routes = [
         loadComponent: () => import('./features/users/user-management.component').then((m) => m.UserManagementComponent)
       },
       {
+        path: 'chat',
+        loadComponent: () => import('./features/chat/chat.component').then((m) => m.ChatComponent)
+      },
+      {
         path: '',
         pathMatch: 'full',
         redirectTo: 'users'
