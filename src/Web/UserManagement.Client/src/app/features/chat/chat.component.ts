@@ -1,7 +1,7 @@
 import { DatePipe } from '@angular/common';
-import { Component, computed, effect, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Check, CheckCheck, LucideAngularModule, MessageCircle, Search, Send, Wifi, WifiOff } from 'lucide-angular';
+import { NgIcon } from '@ng-icons/core';
 import { finalize, forkJoin } from 'rxjs';
 import { AuthService } from '../../core/auth/auth.service';
 import { ChatMessage, ChatUser, Conversation } from '../../core/models/api.models';
@@ -9,25 +9,24 @@ import { ChatApiService } from '../../core/models/chat-api.service';
 import { ChatRealtimeService } from '../../core/models/chat-realtime.service';
 
 @Component({
-  selector: 'app-chat',
-  standalone: true,
-  imports: [ReactiveFormsModule, LucideAngularModule, DatePipe],
-  template: `
+    selector: 'app-chat',
+    imports: [ReactiveFormsModule, NgIcon, DatePipe],
+    template: `
     <section class="chat-shell">
       <aside class="people-panel">
         <div class="panel-header">
           <div>
-            <span class="eyebrow"><lucide-icon [img]="messageIcon" size="14" /> Private messages</span>
+            <span class="eyebrow"><ng-icon name="lucideMessageCircle" size="14" /> Private messages</span>
             <h2>Chat</h2>
           </div>
           <span class="connection" [class.online]="realtime.connected()">
-            <lucide-icon [img]="realtime.connected() ? onlineIcon : offlineIcon" size="16" />
+            <ng-icon [name]="realtime.connected() ? 'lucideWifi' : 'lucideWifiOff'" size="16" />
             {{ realtime.connected() ? 'Live' : 'Offline' }}
           </span>
         </div>
 
         <label class="search-box">
-          <lucide-icon [img]="searchIcon" size="18" />
+          <ng-icon name="lucideSearch" size="18" />
           <input type="search" [value]="query()" (input)="query.set($any($event.target).value)" placeholder="Search people" />
         </label>
 
@@ -68,7 +67,7 @@ import { ChatRealtimeService } from '../../core/models/chat-realtime.service';
                   <time>{{ message.createdAtUtc | date: 'shortTime' }}</time>
                   @if (message.senderId === currentUserId()) {
                     <span class="status">
-                      <lucide-icon [img]="message.status === 'Read' || message.status === 'Delivered' ? doubleCheckIcon : checkIcon" size="14" />
+                      <ng-icon [name]="message.status === 'Read' || message.status === 'Delivered' ? 'lucideCheckCheck' : 'lucideCheck'" size="14" />
                       {{ message.status }}
                     </span>
                   }
@@ -82,13 +81,13 @@ import { ChatRealtimeService } from '../../core/models/chat-realtime.service';
           <form class="composer" [formGroup]="messageForm" (ngSubmit)="sendMessage()">
             <input formControlName="body" placeholder="Write a private message" />
             <button class="button primary" type="submit" [disabled]="messageForm.invalid || sending()">
-              <lucide-icon [img]="sendIcon" size="18" />
+              <ng-icon name="lucideSend" size="18" />
               Send
             </button>
           </form>
         } @else {
           <div class="empty-thread">
-            <lucide-icon [img]="messageIcon" size="42" />
+            <ng-icon name="lucideMessageCircle" size="42" />
             <h2>Select a conversation</h2>
             <p>Choose any authenticated user from the list to start a private chat.</p>
           </div>
@@ -96,20 +95,14 @@ import { ChatRealtimeService } from '../../core/models/chat-realtime.service';
       </section>
     </section>
   `,
-  styleUrl: './chat.component.scss'
+    changeDetection: ChangeDetectionStrategy.Eager,
+    styleUrl: './chat.component.scss'
 })
 export class ChatComponent {
   private readonly api = inject(ChatApiService);
   private readonly fb = inject(FormBuilder);
   private readonly auth = inject(AuthService);
   readonly realtime = inject(ChatRealtimeService);
-  readonly messageIcon = MessageCircle;
-  readonly searchIcon = Search;
-  readonly sendIcon = Send;
-  readonly onlineIcon = Wifi;
-  readonly offlineIcon = WifiOff;
-  readonly checkIcon = Check;
-  readonly doubleCheckIcon = CheckCheck;
   readonly users = signal<ChatUser[]>([]);
   readonly conversations = signal<Conversation[]>([]);
   readonly messages = signal<ChatMessage[]>([]);
@@ -150,28 +143,28 @@ export class ChatComponent {
           void this.realtime.markConversationRead(message.senderId);
         }
       }
-    },{ allowSignalWrites: true });
+    });
 
     effect(() => {
       const message = this.realtime.saved();
       if (message) {
         this.upsertMessage(message);
       }
-    },{ allowSignalWrites: true });
+    });
 
     effect(() => {
       const ids = this.realtime.deliveredIds();
       if (ids.length) {
         this.patchStatuses(ids, 'Delivered');
       }
-    },{ allowSignalWrites: true });
+    });
 
     effect(() => {
       const ids = this.realtime.readIds();
       if (ids.length) {
         this.patchStatuses(ids, 'Read');
       }
-    },{ allowSignalWrites: true });
+    });
   }
 
   loadInitial(): void {

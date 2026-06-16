@@ -1,16 +1,8 @@
 import { DatePipe } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import {
-  Download,
-  LucideAngularModule,
-  RefreshCw,
-  Search,
-  ShieldPlus,
-  UserPlus,
-  Users
-} from 'lucide-angular';
+import { NgIcon } from '@ng-icons/core';
 import { forkJoin, finalize, of } from 'rxjs';
 import { AuthService } from '../../core/auth/auth.service';
 import { LoginAudit, PaginationMetadata, UserProfile } from '../../core/models/api.models';
@@ -19,10 +11,9 @@ import { UserApiService } from '../../core/models/user-api.service';
 type SortKey = 'username' | 'email';
 
 @Component({
-  selector: 'app-user-management',
-  standalone: true,
-  imports: [ReactiveFormsModule, RouterLink, LucideAngularModule, DatePipe],
-  template: `
+    selector: 'app-user-management',
+    imports: [ReactiveFormsModule, RouterLink, NgIcon, DatePipe],
+    template: `
     <section class="toolbar">
       <div class="metric">
         <span>Total users</span>
@@ -39,11 +30,11 @@ type SortKey = 'username' | 'email';
 
       <div class="toolbar-actions">
         <button class="button ghost" type="button" (click)="exportCsv()" [disabled]="!filteredUsers().length">
-          <lucide-icon [img]="downloadIcon" size="18" />
+          <ng-icon name="lucideDownload" size="18" />
           Export
         </button>
         <button class="button primary" type="button" (click)="reload()" [disabled]="loading()">
-          <lucide-icon [img]="refreshIcon" size="18" />
+          <ng-icon name="lucideRefreshCw" size="18" />
           {{ loading() ? 'Loading...' : 'Refresh' }}
         </button>
       </div>
@@ -53,12 +44,12 @@ type SortKey = 'username' | 'email';
       <article class="panel users-panel">
         <div class="panel-header">
           <div>
-            <span class="eyebrow"><lucide-icon [img]="usersIcon" size="14" /> Profiles</span>
+            <span class="eyebrow"><ng-icon name="lucideUsers" size="14" /> Profiles</span>
             <h2>Users</h2>
           </div>
 
           <label class="search-box">
-            <lucide-icon [img]="searchIcon" size="18" />
+            <ng-icon name="lucideSearch" size="18" />
             <input type="search" [value]="query()" (input)="query.set($any($event.target).value)" placeholder="Search users" />
           </label>
         </div>
@@ -120,7 +111,7 @@ type SortKey = 'username' | 'email';
         <article class="panel">
           <div class="panel-header compact">
             <div>
-              <span class="eyebrow"><lucide-icon [img]="shieldIcon" size="14" /> Roles</span>
+              <span class="eyebrow"><ng-icon name="lucideShieldPlus" size="14" /> Roles</span>
               <h2>Assign role</h2>
             </div>
           </div>
@@ -148,7 +139,7 @@ type SortKey = 'username' | 'email';
             }
 
             <button class="button primary full" type="submit" [disabled]="roleForm.invalid || assigningRole() || !auth.isAdmin()">
-              <lucide-icon [img]="shieldIcon" size="18" />
+              <ng-icon name="lucideShieldPlus" size="18" />
               {{ assigningRole() ? 'Assigning...' : 'Assign role' }}
             </button>
           </form>
@@ -157,13 +148,13 @@ type SortKey = 'username' | 'email';
         <article class="panel">
           <div class="panel-header compact">
             <div>
-              <span class="eyebrow"><lucide-icon [img]="createIcon" size="14" /> Create</span>
+              <span class="eyebrow"><ng-icon name="lucideUserPlus" size="14" /> Create</span>
               <h2>Add user</h2>
             </div>
           </div>
           <p class="notice">New users are created from the register page and synchronized into this profile list by the service event flow.</p>
           <a class="button ghost full link-button" routerLink="/register">
-            <lucide-icon [img]="createIcon" size="18" />
+            <ng-icon name="lucideUserPlus" size="18" />
             Register user
           </a>
         </article>
@@ -173,7 +164,7 @@ type SortKey = 'username' | 'email';
     <section class="panel audits-panel">
       <div class="panel-header">
         <div>
-          <span class="eyebrow"><lucide-icon [img]="shieldIcon" size="14" /> Admin audit trail</span>
+          <span class="eyebrow"><ng-icon name="lucideShieldPlus" size="14" /> Admin audit trail</span>
           <h2>Login audits</h2>
         </div>
       </div>
@@ -213,18 +204,13 @@ type SortKey = 'username' | 'email';
       }
     </section>
   `,
-  styleUrl: './user-management.component.scss'
+    changeDetection: ChangeDetectionStrategy.Eager,
+    styleUrl: './user-management.component.scss'
 })
 export class UserManagementComponent {
   private readonly fb = inject(FormBuilder);
   private readonly api = inject(UserApiService);
   readonly auth = inject(AuthService);
-  readonly usersIcon = Users;
-  readonly searchIcon = Search;
-  readonly refreshIcon = RefreshCw;
-  readonly downloadIcon = Download;
-  readonly shieldIcon = ShieldPlus;
-  readonly createIcon = UserPlus;
   readonly users = signal<UserProfile[]>([]);
   readonly audits = signal<LoginAudit[]>([]);
   readonly userPagination = signal<PaginationMetadata | null>(null);

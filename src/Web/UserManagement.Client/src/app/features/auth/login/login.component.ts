@@ -1,15 +1,14 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { LogIn, LucideAngularModule } from 'lucide-angular';
+import { NgIcon } from '@ng-icons/core';
 import { finalize } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 
 @Component({
-  selector: 'app-login',
-  standalone: true,
-  imports: [ReactiveFormsModule, RouterLink, LucideAngularModule],
-  template: `
+    selector: 'app-login',
+    imports: [ReactiveFormsModule, RouterLink, NgIcon],
+    template: `
     <main class="auth-page">
       <section class="auth-panel">
         <div class="auth-copy">
@@ -34,7 +33,7 @@ import { AuthService } from '../../../core/auth/auth.service';
           }
 
           <button class="button primary full" type="submit" [disabled]="form.invalid || loading()">
-            <lucide-icon [img]="loginIcon" size="18" />
+            <ng-icon name="lucideLogIn" size="18" />
             {{ loading() ? 'Signing in...' : 'Sign in' }}
           </button>
 
@@ -43,13 +42,13 @@ import { AuthService } from '../../../core/auth/auth.service';
       </section>
     </main>
   `,
-  styleUrl: '../auth-pages.scss'
+    changeDetection: ChangeDetectionStrategy.Eager,
+    styleUrl: '../auth-pages.scss'
 })
 export class LoginComponent {
   private readonly fb = inject(FormBuilder);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
-  readonly loginIcon = LogIn;
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly form = this.fb.nonNullable.group({

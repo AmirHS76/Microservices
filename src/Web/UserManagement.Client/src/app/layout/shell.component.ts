@@ -1,13 +1,12 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, computed, inject, ChangeDetectionStrategy } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { LogOut, LucideAngularModule, MessageCircle, ShieldCheck, Users } from 'lucide-angular';
+import { NgIcon } from '@ng-icons/core';
 import { AuthService } from '../core/auth/auth.service';
 
 @Component({
-  selector: 'app-shell',
-  standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, LucideAngularModule],
-  template: `
+    selector: 'app-shell',
+    imports: [RouterOutlet, RouterLink, RouterLinkActive, NgIcon],
+    template: `
     <main class="app-shell">
       <aside class="sidebar">
         <a class="brand" routerLink="/users" aria-label="User Management home">
@@ -20,11 +19,11 @@ import { AuthService } from '../core/auth/auth.service';
 
         <nav class="nav-list" aria-label="Primary navigation">
           <a routerLink="/users" routerLinkActive="active">
-            <lucide-icon [img]="usersIcon" size="18" />
+            <ng-icon name="lucideUsers" size="18" />
             Users
           </a>
           <a routerLink="/chat" routerLinkActive="active">
-            <lucide-icon [img]="chatIcon" size="18" />
+            <ng-icon name="lucideMessageCircle" size="18" />
             Chat
           </a>
         </nav>
@@ -41,12 +40,12 @@ import { AuthService } from '../core/auth/auth.service';
       <section class="workspace">
         <header class="topbar">
           <div>
-            <span class="eyebrow"><lucide-icon [img]="shieldIcon" size="14" /> Secure Admin Area</span>
+            <span class="eyebrow"><ng-icon name="lucideShieldCheck" size="14" /> Secure Admin Area</span>
             <h1>User management</h1>
           </div>
 
           <button class="button ghost" type="button" (click)="auth.logout()">
-            <lucide-icon [img]="logoutIcon" size="18" />
+            <ng-icon name="lucideLogOut" size="18" />
             Sign out
           </button>
         </header>
@@ -55,8 +54,9 @@ import { AuthService } from '../core/auth/auth.service';
       </section>
     </main>
   `,
-  styles: [
-    `
+    changeDetection: ChangeDetectionStrategy.Eager,
+    styles: [
+        `
       .app-shell {
         min-height: 100vh;
         display: grid;
@@ -197,14 +197,10 @@ import { AuthService } from '../core/auth/auth.service';
         }
       }
     `
-  ]
+    ]
 })
 export class ShellComponent {
   readonly auth = inject(AuthService);
-  readonly usersIcon = Users;
-  readonly chatIcon = MessageCircle;
-  readonly shieldIcon = ShieldCheck;
-  readonly logoutIcon = LogOut;
   readonly email = computed(() => this.auth.currentUser()?.email || 'Signed in');
   readonly roles = computed(() => this.auth.currentUser()?.roles.join(', ') || 'User');
   readonly initials = computed(() => (this.email().slice(0, 2) || 'UM').toUpperCase());

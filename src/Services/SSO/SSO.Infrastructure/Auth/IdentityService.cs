@@ -1,16 +1,16 @@
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using SSO.Application.Contracts;
 using SSO.Application.DTOs;
 using SSO.Infrastructure.Identity;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 
 namespace SSO.Infrastructure.Auth;
 
 public sealed class IdentityService(UserManager<AppIdentityUser> userManager) : IIdentityService
 {
-    public async Task<CreateIdentityUserResultDto> CreateUserAsync(Guid userId, string email, string password, CancellationToken cancellationToken = default)
+    public async Task<CreateIdentityUserResultDto> CreateUserAsync(UserCreateDTO userDto, CancellationToken cancellationToken = default)
     {
-        var existing = await userManager.Users.FirstOrDefaultAsync(x => x.Email == email, cancellationToken);
+        var existing = await userManager.Users.FirstOrDefaultAsync(x => x.Email == userDto.Email || x.UserName == userDto.Username, cancellationToken);
         if (existing is not null)
         {
             return new CreateIdentityUserResultDto(false, ["User already exists."], []);
@@ -18,12 +18,12 @@ public sealed class IdentityService(UserManager<AppIdentityUser> userManager) : 
 
         var user = new AppIdentityUser
         {
-            Id = userId,
-            Email = email,
-            UserName = email
+            Id = userDto.UserId,
+            Email = userDto.Email,
+            UserName = userDto.Username
         };
 
-        var result = await userManager.CreateAsync(user, password);
+        var result = await userManager.CreateAsync(user, userDto.Password);
         if (!result.Succeeded)
         {
             return new CreateIdentityUserResultDto(false, result.Errors.Select(x => x.Description).ToArray(), []);
