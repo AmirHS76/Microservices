@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Chat.Infrastructure.Persistence;
 
-public sealed class ChatDbContext(DbContextOptions<ChatDbContext> options) : DbContext(options)
+public sealed class ChatWriteDbContext(DbContextOptions<ChatWriteDbContext> options) : DbContext(options)
 {
     public DbSet<ChatUser> Users => Set<ChatUser>();
     public DbSet<Conversation> Conversations => Set<Conversation>();

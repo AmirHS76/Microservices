@@ -2,6 +2,7 @@ import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/cor
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { NgIcon } from '@ng-icons/core';
+import { Title } from '@angular/platform-browser';
 import { finalize } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 
@@ -56,14 +57,19 @@ import { AuthService } from '../../../core/auth/auth.service';
       </section>
     </main>
   `,
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styleUrl: '../auth-pages.scss'
 })
 export class RegisterComponent {
   private readonly fb = inject(FormBuilder);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly title = inject(Title);
   readonly loading = signal(false);
+
+  constructor() {
+    this.title.setTitle('Create account - User Management');
+  }
   readonly error = signal<string | null>(null);
   readonly form = this.fb.nonNullable.group({
     username: ['', [Validators.required, Validators.minLength(2)]],

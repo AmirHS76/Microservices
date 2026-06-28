@@ -9,6 +9,7 @@ public sealed record ValidateCredentialsResultDto(
     bool Success,
     Guid? UserId,
     string? UserName,
+    string? Email,
     IReadOnlyCollection<string> Roles);
 
 public sealed record AssignRoleResultDto(

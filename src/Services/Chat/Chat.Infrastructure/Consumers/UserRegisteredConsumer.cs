@@ -5,7 +5,7 @@ using Messaging.Contracts;
 
 namespace Chat.Infrastructure.Consumers;
 
-public sealed class UserRegisteredConsumer(IChatRepository repository) : IEventConsumer<UserRegisteredEvent>
+public sealed class UserRegisteredConsumer(IWriteChatRepository repository) : IEventConsumer<UserRegisteredEvent>
 {
     public Task ConsumeAsync(UserRegisteredEvent integrationEvent, CancellationToken cancellationToken = default)
     {

@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Chat.Infrastructure.Repositories;
 
-public sealed class SqlChatRepository(ChatDbContext dbContext) : IChatRepository
+public sealed class SqlWriteChatRepository(ChatWriteDbContext dbContext) : IWriteChatRepository
 {
     public async Task UpsertUserAsync(ChatUser user, CancellationToken cancellationToken = default)
     {
@@ -22,40 +22,7 @@ public sealed class SqlChatRepository(ChatDbContext dbContext) : IChatRepository
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task<IReadOnlyCollection<ChatUser>> GetUsersAsync(Guid currentUserId, CancellationToken cancellationToken = default)
-    {
-        return await dbContext.Users
-            .AsNoTracking()
-            .Where(x => x.UserId != currentUserId)
-            .OrderBy(x => x.Username)
-            .ToListAsync(cancellationToken);
-    }
 
-    public async Task<IReadOnlyCollection<Conversation>> GetConversationsAsync(Guid currentUserId, CancellationToken cancellationToken = default)
-    {
-        return await dbContext.Conversations
-            .AsNoTracking()
-            .Include(x => x.Messages.OrderByDescending(m => m.CreatedAtUtc).Take(1))
-            .Where(x => x.FirstUserId == currentUserId || x.SecondUserId == currentUserId)
-            .OrderByDescending(x => x.LastMessageAtUtc)
-            .ToListAsync(cancellationToken);
-    }
-
-    public async Task<IReadOnlyCollection<ChatMessage>> GetMessagesAsync(Guid currentUserId, Guid otherUserId, int pageNumber, int pageSize, CancellationToken cancellationToken = default)
-    {
-        var normalized = NormalizePair(currentUserId, otherUserId);
-        var skip = Math.Max(0, pageNumber - 1) * Math.Clamp(pageSize, 1, 100);
-
-        return await dbContext.Messages
-            .AsNoTracking()
-            .Where(x => x.Conversation != null &&
-                        x.Conversation.FirstUserId == normalized.FirstUserId &&
-                        x.Conversation.SecondUserId == normalized.SecondUserId)
-            .OrderByDescending(x => x.CreatedAtUtc)
-            .Skip(skip)
-            .Take(Math.Clamp(pageSize, 1, 100))
-            .ToListAsync(cancellationToken);
-    }
 
     public async Task<ChatMessage> SaveQueuedMessageAsync(Guid messageId, Guid senderId, Guid recipientId, string body, DateTime createdAtUtc, bool recipientOnline, CancellationToken cancellationToken = default)
     {

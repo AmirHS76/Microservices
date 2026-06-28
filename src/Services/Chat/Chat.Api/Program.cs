@@ -1,4 +1,5 @@
 using ApiResponses;
+using Chat.Api.Caching;
 using Chat.Api.Consumers;
 using Chat.Api.Hubs;
 using Chat.Api.Realtime;
@@ -11,6 +12,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
+using StackExchange.Redis;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -67,6 +69,13 @@ builder.Services.AddControllers();
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<IUserIdProvider, NameIdentifierUserIdProvider>();
 builder.Services.AddSingleton<IUserConnectionTracker, UserConnectionTracker>();
+builder.Services.AddSingleton<IConnectionMultiplexer>(_ =>
+{
+    var redisConfiguration = ConfigurationOptions.Parse(builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379");
+    redisConfiguration.AbortOnConnectFail = false;
+    return ConnectionMultiplexer.Connect(redisConfiguration);
+});
+builder.Services.AddSingleton<IChatMessageCache, RedisChatMessageCache>();
 builder.Services.AddBaseResponseValidation();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

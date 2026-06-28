@@ -11,17 +11,21 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddDbContext<ChatDbContext>(options =>
-            options.UseSqlServer(configuration.GetConnectionString("ChatDb")));
+        services.AddDbContext<ChatWriteDbContext>(options =>
+            options.UseSqlServer(configuration.GetConnectionString("ChatWriteDb")));
+        services.AddDbContext<ChatReadDbContext>(options =>
+            options.UseSqlServer(configuration.GetConnectionString("ChatReadDb")));
+        services.AddScoped<IWriteChatRepository, SqlWriteChatRepository>();
+        services.AddScoped<IReadChatRepository, SqlReadChatRepository>();
 
-        services.AddScoped<IChatRepository, SqlChatRepository>();
         return services;
     }
 
     public static async Task EnsureDatabaseCreatedAsync(this IServiceProvider serviceProvider)
     {
         using var scope = serviceProvider.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<ChatDbContext>();
-        await dbContext.Database.EnsureCreatedAsync();
+        var dbContext = scope.ServiceProvider.GetRequiredService<ChatWriteDbContext>();
+        // Use migrations instead of EnsureCreated to keep schema under migrations control
+        await dbContext.Database.MigrateAsync();
     }
 }

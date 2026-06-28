@@ -1,9 +1,10 @@
 using ApiResponses;
-using SSO.Api.Contracts;
-using SSO.Application.UseCases.Auth;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SSO.Api.Contracts;
+using SSO.Application.DTOs;
+using SSO.Application.UseCases.Auth;
 
 namespace SSO.Api.Controllers;
 
@@ -16,7 +17,7 @@ public sealed class AuthController(IMediator mediator) : ControllerBase
         [FromBody] LoginRequestDto request,
         CancellationToken cancellationToken)
     {
-        var command = new LoginCommand(request.Email, request.Password);
+        var command = new LoginCommand(request.Email, request.Username, request.Password);
         var result = await mediator.Send(command, cancellationToken);
         var response = result.Success
             ? ApiResponse<AuthResponseDto>.Ok(new AuthResponseDto(result.Token!), "Login completed successfully.")

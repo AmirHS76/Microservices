@@ -8,7 +8,7 @@ namespace SSO.Infrastructure.Auth;
 
 public sealed class IdentityService(UserManager<AppIdentityUser> userManager) : IIdentityService
 {
-    public async Task<CreateIdentityUserResultDto> CreateUserAsync(UserCreateDTO userDto, CancellationToken cancellationToken = default)
+    public async Task<CreateIdentityUserResultDto> CreateUserAsync(UserCreateDto userDto, CancellationToken cancellationToken = default)
     {
         var existing = await userManager.Users.FirstOrDefaultAsync(x => x.Email == userDto.Email || x.UserName == userDto.Username, cancellationToken);
         if (existing is not null)
@@ -33,22 +33,22 @@ public sealed class IdentityService(UserManager<AppIdentityUser> userManager) : 
         return new CreateIdentityUserResultDto(true, [], ["User"]);
     }
 
-    public async Task<ValidateCredentialsResultDto> ValidateCredentialsAsync(string email, string password, CancellationToken cancellationToken = default)
+    public async Task<ValidateCredentialsResultDto> ValidateCredentialsAsync(LoginRequestDto loginRequest, CancellationToken cancellationToken = default)
     {
-        var user = await userManager.Users.FirstOrDefaultAsync(x => x.Email == email, cancellationToken);
+        var user = await userManager.Users.FirstOrDefaultAsync(x => x.Email == loginRequest.Email || x.UserName == loginRequest.Username, cancellationToken);
         if (user is null)
         {
-            return new ValidateCredentialsResultDto(false, null, null, []);
+            return new ValidateCredentialsResultDto(false, null, null, null, []);
         }
 
-        var ok = await userManager.CheckPasswordAsync(user, password);
+        var ok = await userManager.CheckPasswordAsync(user, loginRequest.Password);
         if (!ok)
         {
-            return new ValidateCredentialsResultDto(false, null, null, []);
+            return new ValidateCredentialsResultDto(false, null, null, null, []);
         }
 
         var roles = await userManager.GetRolesAsync(user);
-        return new ValidateCredentialsResultDto(true, user.Id, user.UserName, roles.ToArray());
+        return new ValidateCredentialsResultDto(true, user.Id, user.UserName, user.Email, roles.ToArray());
     }
 
     public async Task<AssignRoleResultDto> AssignRoleAsync(Guid userId, string role, CancellationToken cancellationToken = default)

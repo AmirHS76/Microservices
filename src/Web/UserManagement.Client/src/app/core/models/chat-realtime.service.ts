@@ -37,8 +37,13 @@ export class ChatRealtimeService {
       this.connection = null;
     });
 
-    await this.connection.start();
-    this.connected.set(true);
+    try {
+      await this.connection.start();
+      this.connected.set(true);
+    } catch {
+      this.connected.set(false);
+      this.connection = null;
+    }
   }
 
   async disconnect(): Promise<void> {
@@ -63,5 +68,12 @@ export class ChatRealtimeService {
   async markConversationRead(otherUserId: string): Promise<void> {
     await this.connect();
     await this.connection?.invoke('MarkConversationRead', otherUserId);
+  }
+
+  clearStale(): void {
+    this.incoming.set(null);
+    this.saved.set(null);
+    this.deliveredIds.set([]);
+    this.readIds.set([]);
   }
 }

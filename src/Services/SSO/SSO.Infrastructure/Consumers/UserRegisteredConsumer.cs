@@ -9,7 +9,7 @@ public sealed class UserRegisteredConsumer(IIdentityService identityService) : I
 {
     public Task ConsumeAsync(UserRegisteredEvent integrationEvent, CancellationToken cancellationToken = default)
     {
-        return identityService.CreateUserAsync(new UserCreateDTO
+        return identityService.CreateUserAsync(new UserCreateDto
             (integrationEvent.UserId, integrationEvent.Username, integrationEvent.Email, integrationEvent.Password), cancellationToken);
     }
 }

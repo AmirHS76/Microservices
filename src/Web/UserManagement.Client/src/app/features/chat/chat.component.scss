@@ -1,7 +1,7 @@
 .chat-shell {
   display: grid;
   grid-template-columns: 360px minmax(0, 1fr);
-  min-height: calc(100vh - 124px);
+  height: calc(100vh - 124px);
   border: 1px solid var(--color-border);
   border-radius: 8px;
   overflow: hidden;

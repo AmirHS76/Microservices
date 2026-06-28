@@ -54,7 +54,7 @@ import { AuthService } from '../core/auth/auth.service';
       </section>
     </main>
   `,
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styles: [
         `
       .app-shell {

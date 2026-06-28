@@ -1,4 +1,4 @@
 ﻿namespace SSO.Application.DTOs
 {
-    public record UserCreateDTO(Guid UserId, string Username, string Email, string Password);
+    public record UserCreateDto(Guid UserId, string Username, string Email, string Password);
 }

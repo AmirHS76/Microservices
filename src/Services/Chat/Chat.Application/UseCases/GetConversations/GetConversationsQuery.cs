@@ -6,7 +6,7 @@ namespace Chat.Application.UseCases.GetConversations;
 
 public sealed record GetConversationsQuery(Guid CurrentUserId) : IRequest<IReadOnlyCollection<Conversation>>;
 
-public sealed class GetConversationsHandler(IChatRepository repository)
+public sealed class GetConversationsHandler(IReadChatRepository repository)
     : IRequestHandler<GetConversationsQuery, IReadOnlyCollection<Conversation>>
 {
     public Task<IReadOnlyCollection<Conversation>> Handle(GetConversationsQuery request, CancellationToken cancellationToken)

@@ -1,3 +1,4 @@
+using Chat.Api.Caching;
 using Chat.Api.Contracts;
 using Chat.Api.Realtime;
 using Chat.Application.Contracts;
@@ -13,7 +14,8 @@ namespace Chat.Api.Hubs;
 [Authorize]
 public sealed class ChatHub(
     IEventPublisher eventPublisher,
-    IChatRepository repository,
+    IWriteChatRepository repository,
+    IChatMessageCache messageCache,
     IUserConnectionTracker connectionTracker) : Hub
 {
     public override async Task OnConnectedAsync()
@@ -22,10 +24,31 @@ public sealed class ChatHub(
         if (userId is not null)
         {
             connectionTracker.Add(userId.Value, Context.ConnectionId);
-            var delivered = await repository.MarkDeliveredAsync(userId.Value, Context.ConnectionAborted);
-            foreach (var group in delivered.GroupBy(x => x.SenderId))
+
+            // Mark delivered in DB (for already-persisted messages)
+            var dbDelivered = await repository.MarkDeliveredAsync(userId.Value, Context.ConnectionAborted);
+            foreach (var group in dbDelivered.GroupBy(x => x.SenderId))
             {
                 await Clients.User(group.Key.ToString()).SendAsync("MessagesDelivered", group.Select(x => x.Id).ToArray(), Context.ConnectionAborted);
+            }
+
+            // Mark delivered in cache (for in-flight messages not yet in DB)
+            var cachedMessages = await messageCache.MarkInboxAsDeliveredAsync(userId.Value, Context.ConnectionAborted);
+            var dbDeliveredIds = dbDelivered.Select(x => x.Id).ToHashSet();
+
+            foreach (var group in cachedMessages.GroupBy(x => x.SenderId))
+            {
+                // Only notify for IDs not already covered by the DB path above
+                var cacheOnlyIds = group.Select(x => x.Id).Where(id => !dbDeliveredIds.Contains(id)).ToArray();
+                if (cacheOnlyIds.Length > 0)
+                {
+                    await Clients.User(group.Key.ToString()).SendAsync("MessagesDelivered", cacheOnlyIds, Context.ConnectionAborted);
+                }
+            }
+
+            foreach (var message in cachedMessages)
+            {
+                await Clients.Caller.SendAsync("ReceiveMessage", message, Context.ConnectionAborted);
             }
         }
 
@@ -57,17 +80,25 @@ public sealed class ChatHub(
         {
             body = body[..4000];
         }
+        var isOnline = connectionTracker.IsOnline(request.RecipientId);
 
         var createdAtUtc = DateTime.UtcNow;
-        await Clients.Caller.SendAsync("MessageQueued", new ChatMessageDto(
+        var deliveredAtUtc = DateTime.UtcNow;
+        var message = new ChatMessageDto(
             messageId,
             senderId.Value,
             request.RecipientId,
             body,
-            "Pending",
+            isOnline ? ChatMessageStatus.Delivered.ToString() : ChatMessageStatus.Sent.ToString(),
             createdAtUtc,
-            null,
-            null));
+            isOnline ? deliveredAtUtc : null,
+            null);
+
+        await messageCache.SaveAsync(message, Context.ConnectionAborted);
+        await Clients.Caller.SendAsync("MessageSaved", message, Context.ConnectionAborted);
+        if (isOnline)
+            await Clients.Caller.SendAsync("MessagesDelivered", new[] { messageId }, Context.ConnectionAborted);
+        await Clients.User(request.RecipientId.ToString()).SendAsync("ReceiveMessage", message, Context.ConnectionAborted);
 
         await eventPublisher.PublishAsync(new ChatMessageQueuedEvent(messageId, senderId.Value, request.RecipientId, body, createdAtUtc), Context.ConnectionAborted);
     }
@@ -76,16 +107,25 @@ public sealed class ChatHub(
     {
         var userId = CurrentUserId();
         if (userId is null)
-        {
             return;
+
+        // Mark read in DB (persisted messages)
+        var dbReadMessages = await repository.MarkReadAsync(userId.Value, otherUserId, Context.ConnectionAborted);
+        var dbReadIds = dbReadMessages.Select(x => x.Id).ToHashSet();
+
+        // Mark read in cache (in-flight messages not yet in DB), also cleans inbox
+        var cachedReadMessages = await messageCache.MarkInboxAsReadAsync(userId.Value, otherUserId, Context.ConnectionAborted);
+        var cacheOnlyIds = cachedReadMessages.Select(x => x.Id).Where(id => !dbReadIds.Contains(id)).ToArray();
+
+        var allReadIds = dbReadIds.Concat(cacheOnlyIds).ToArray();
+        if (allReadIds.Length > 0)
+        {
+            await Clients.User(otherUserId.ToString()).SendAsync("MessagesRead", allReadIds, Context.ConnectionAborted);
+            await Clients.Caller.SendAsync("MessagesRead", allReadIds, Context.ConnectionAborted);
         }
 
-        var readMessages = await repository.MarkReadAsync(userId.Value, otherUserId, Context.ConnectionAborted);
-        if (readMessages.Count > 0)
-        {
-            await Clients.User(otherUserId.ToString()).SendAsync("MessagesRead", readMessages.Select(x => x.Id).ToArray(), Context.ConnectionAborted);
-            await Clients.Caller.SendAsync("MessagesRead", readMessages.Select(x => x.Id).ToArray(), Context.ConnectionAborted);
-        }
+        // No longer needed — MarkInboxAsReadAsync already removes from inbox
+        // await messageCache.RemoveInboxConversationAsync(userId.Value, otherUserId, ...);
     }
 
     public static ChatMessageDto MapMessage(ChatMessage message)

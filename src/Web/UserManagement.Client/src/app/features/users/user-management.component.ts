@@ -3,7 +3,8 @@ import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@a
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { NgIcon } from '@ng-icons/core';
-import { forkJoin, finalize, of } from 'rxjs';
+import { Title } from '@angular/platform-browser';
+import { finalize } from 'rxjs';
 import { AuthService } from '../../core/auth/auth.service';
 import { LoginAudit, PaginationMetadata, UserProfile } from '../../core/models/api.models';
 import { UserApiService } from '../../core/models/user-api.service';
@@ -204,12 +205,13 @@ type SortKey = 'username' | 'email';
       }
     </section>
   `,
-    changeDetection: ChangeDetectionStrategy.Eager,
+    changeDetection: ChangeDetectionStrategy.OnPush,
     styleUrl: './user-management.component.scss'
 })
 export class UserManagementComponent {
   private readonly fb = inject(FormBuilder);
   private readonly api = inject(UserApiService);
+  private readonly title = inject(Title);
   readonly auth = inject(AuthService);
   readonly users = signal<UserProfile[]>([]);
   readonly audits = signal<LoginAudit[]>([]);
@@ -246,30 +248,33 @@ export class UserManagementComponent {
   });
 
   constructor() {
+    this.title.setTitle('Users - User Management');
     this.reload();
   }
 
   reload(): void {
     this.loading.set(true);
     this.error.set(null);
-    const requests = {
-      users: this.api.getUsers(this.userPageNumber(), this.userPageSize()),
-      audits: this.auth.isAdmin()
-        ? this.api.getLoginAudits(this.auditPageNumber(), this.auditPageSize())
-        : of(null)
-    };
 
-    forkJoin(requests)
+    this.api.getUsers(this.userPageNumber(), this.userPageSize())
       .pipe(finalize(() => this.loading.set(false)))
       .subscribe({
-        next: ({ users, audits }) => {
+        next: (users) => {
           this.users.set(users.data ?? []);
           this.userPagination.set(users.pagination);
-          this.audits.set(audits?.data ?? []);
-          this.auditPagination.set(audits?.pagination ?? null);
         },
         error: (response) => this.error.set(response.error?.message || response.message || 'Unable to load user data.')
       });
+
+    if (this.auth.isAdmin()) {
+      this.api.getLoginAudits(this.auditPageNumber(), this.auditPageSize())
+        .subscribe({
+          next: (audits) => {
+            this.audits.set(audits.data ?? []);
+            this.auditPagination.set(audits.pagination);
+          }
+        });
+    }
   }
 
   setSort(key: SortKey): void {
